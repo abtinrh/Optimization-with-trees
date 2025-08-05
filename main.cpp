@@ -67,5 +67,18 @@ int main() {
     tree.flush_lazy();
     tree.print_tree();
 
+    // NDCache test:
+    cout << "\n--- NDCache Test ---\n";
+    Point dominator({2, 2});
+    Point dominated({5, 5});
+
+    tree.insert(dominator); // inserted as root
+    tree.insert(dominated); // dominated by (2, 2), goes to NDCache
+    tree.print_tree();
+
+    cout << "\nRemoving dominator point (2, 2)...\n";
+    tree.remove(dominator); // should flush NDCache
+    tree.print_tree();
+
     return 0;
 }

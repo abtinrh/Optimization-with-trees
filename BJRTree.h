@@ -13,6 +13,7 @@ private:
     shared_ptr<Node> root;
     int dimension;
     std::vector<Point> lazyBuffer;
+    std::vector<Point> ndCache; // ← NDCache اضافه شد
 
 public:
     BJRTree(int dim) : root(nullptr), dimension(dim) {}
@@ -25,11 +26,15 @@ public:
             std::cout << "\n";
             return;
         }
-        insert_recursive(root, pt);
+        if (!insert_recursive(root, pt)) {
+            std::cout << "NDCache <- "; pt.print(); std::cout << "\n";
+            ndCache.push_back(pt); // ← اگر درج نشد، در کش قرار بگیرد
+        }
     }
 
     void remove(const Point& pt) {
         remove_recursive(nullptr, root, pt);
+        flush_nd_cache(); // ← بعد از حذف، NDCache را بررسی کن
     }
 
     void flush_lazy() {
@@ -49,11 +54,27 @@ public:
         lazyBuffer.clear();
     }
 
+    void flush_nd_cache() {
+        std::cout << "\nFlushing NDCache...\n";
+        std::vector<Point> remaining;
+        for (const auto& pt : ndCache) {
+            std::cout << "Retry insert: "; pt.print(); std::cout << "\n";
+            if (!root) {
+                root = make_shared<Node>(pt);
+                std::cout << "Inserted from cache as root.\n";
+            } else if (!insert_recursive(root, pt)) {
+                remaining.push_back(pt); // ← هنوز dominated است
+                std::cout << "Still dominated, keep in NDCache.\n";
+            }
+        }
+        ndCache = remaining;
+    }
+
 private:
     bool insert_recursive(shared_ptr<Node> node, const Point& pt) {
         if (node->point.dominates(pt)) {
             std::cout << "Rejected point "; pt.print(); std::cout << " — dominated by "; node->point.print(); std::cout << "\n";
-            return true;
+            return false;
         }
 
         if (pt.dominates(node->point)) {
@@ -92,7 +113,7 @@ private:
         if (!node) return;
 
         if (node->point.coords == pt.coords) {
-            collect_subtree_points(node); // ← ثبت کل زیر درخت، شامل خود گره
+            collect_subtree_points(node);
 
             if (parent) {
                 parent->children.erase(remove_if(parent->children.begin(), parent->children.end(),
